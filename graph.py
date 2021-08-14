@@ -22,25 +22,36 @@ def preprocess(img):
     return img_erode
     #return img_gray
 
-def find_tip(points, convex_hull):
-    length = len(points)
-    indices = np.setdiff1d(range(length), convex_hull)
-
-    for i in range(2):
-        j = indices[i] + 2
-        if j > length - 1:
-            j = length - j
-        if np.all(points[j] == points[indices[i - 1] - 2]):
-            return tuple(points[j])
-
-def find_beg(points,arrow_tip):
+def find_tip(points, convex_hull, output):
     length = len(points)
     biggest = 0
     for i in range(length):
-        if distance(tuple(points[i]),tuple(arrow_tip)) > biggest :
-            biggest = distance(points[i],arrow_tip)
-            biggestt = points[i]
-    return tuple(biggestt)
+        for j in range(length):
+            if i!=j and distance(tuple(points[i]),tuple(points[j])) > biggest :
+                biggest = distance(points[i],points[j])
+                point1 = points[i]
+                point2 = points[j]
+                index1=i
+                index2=j
+    smallest1=99999
+    smallest2=99999
+    for i in range(length):
+        if i!=index1 and i!=index2:
+            if distance(tuple(points[i]),tuple(point1)) < smallest1:
+                smallest1 = distance(tuple(points[i]),tuple(point1))
+            if distance(tuple(points[i]),tuple(point2)) < smallest2:
+                smallest2 = distance(tuple(points[i]),tuple(point2))
+    if smallest1<smallest2:
+        point1=point2
+        point2=points[index1]
+    tup=[0,0]
+    tup[0]=tuple(point1)
+    tup[1]=tuple(point2)
+    return tup
+    cv2.circle(output, point1, 5, (0, 255, 0), cv2.FILLED)
+    cv2.circle(output, point2, 5, (0, 255, 0), cv2.FILLED)
+    cv2.imshow("Image", output)
+    cv2.waitKey(0)
 
 def find_tips(points):
     length = len(points)
@@ -56,12 +67,13 @@ def find_tips(points):
     biggest2=0
     for i in range(length):
         for j in range(length):
-            if i!=index1 and i!=index2 and j!=index1 and j!=index2 and i!=distance(tuple(points[i]),tuple(points[j])) > biggest2 :
-                biggest2 = distance(points[i],points[j])
-                point3 = points[i]
-                point4 = points[j]
-                index3 = i
-                index4 = j
+            if i!=index1 and i!=index2 and j!=index1 and j!=index2 and biggest2 < distance(tuple(points[i]),tuple(points[j])):
+                if distance(tuple(points[i]),tuple(point1)) > 60 and distance(tuple(points[i]),tuple(point2)) > 60 and distance(tuple(points[j]),tuple(point1)) > 60 and distance(tuple(points[j]),tuple(point2)) > 60:
+                    biggest2 = distance(points[i],points[j])
+                    point3 = points[i]
+                    point4 = points[j]
+                    index3 = i
+                    index4 = j
     smallest1=99999
     for i in range(length):
         if i!=index1 and i!=index2 and i!=index3 and i!=index4 and distance(points[i],point1) < smallest1 :
@@ -106,6 +118,11 @@ def processtxt(txt):
     if len(txt2)==2 and txt2[0].isupper() and txt2[1]==txt[0].lower() :
             txt2=txt2[0:1]
     return txt2
+
+def preprocesscrop(img):
+    img = cv2.resize(img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+    img = cv2.GaussianBlur(img, (3, 3), 0)
+    return img
 
 class edge:
     def __init__(self,countour,beg_point,edge_tip):
@@ -159,22 +176,21 @@ exno = cv2.add(im_in,sub)
 
 listEdges=[]
 listNodes=[]
+"""
 cv2.imshow("Arrows", exar)
 cv2.waitKey(0)
 cv2.imshow("Nodes", exno)
 cv2.waitKey(0)
-
+"""
 contours, hierarchy = cv2.findContours(preprocess(exar), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 for cnt in contours:
     peri = cv2.arcLength(cnt, True)
     approx = cv2.approxPolyDP(cnt, 0.025 * peri, True)
     hull = cv2.convexHull(approx, returnPoints=False)
     sides = len(hull)
-    if 6 > sides > 3 and sides + 2 == len(approx):
-        arrow_tip = find_tip(approx[:,0,:], hull.squeeze())
-        if arrow_tip:
-            beg_point = find_beg(approx[:,0,:], arrow_tip)
-            listEdges.append(edge(cnt,beg_point,arrow_tip))
+    if 6 > sides > 3 and (len(approx)!=8):
+        tips = find_tip(approx[:,0,:], hull.squeeze(), output)
+        listEdges.append(edge(cnt,tips[0],tips[1]))
     elif sides == 4 and len(approx) == 8:
         approx = cv2.approxPolyDP(cnt, 0.01 * peri, True)
         tips = find_tips(approx[:,0,:])
@@ -192,13 +208,19 @@ for cnt in contours:
     gray = cropped
     circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 0.9, 20, param1 = 50, param2 = 30, minRadius = 30, maxRadius = 155)
     if circles is not None:
-        x=x+31
-        y=y+33
-        w=w-60
-        h=h-63
-        cropped = exno[y:y + h, x:x + w]
-        #cv2.imshow("Image", cropped)
-        #cv2.waitKey(0)
+        height = gray.shape[0]
+        width = gray.shape[1]
+        x=0; y=0
+        x=x+int((width/4))
+        y=y+int((height/4))
+        w=int((width/2))
+        h=int((width/2))
+        cropped = gray[y:y + h, x:x + w]
+        cropped = preprocesscrop(cropped)
+        """
+        cv2.imshow("Image", cropped)
+        cv2.waitKey(0)
+        """
         txt = pytesseract.image_to_string(cropped,config='--psm 9')
         #analyzetxt(txt)
         txt=processtxt(txt)
