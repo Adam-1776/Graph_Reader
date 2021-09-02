@@ -217,10 +217,10 @@ for cnt in contours:
         h=int((width/2))
         cropped = gray[y:y + h, x:x + w]
         cropped = preprocesscrop(cropped)
-        """
+        
         cv2.imshow("Image", cropped)
         cv2.waitKey(0)
-        """
+        
         txt = pytesseract.image_to_string(cropped,config='--psm 9')
         #analyzetxt(txt)
         txt=processtxt(txt)
