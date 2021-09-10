@@ -16,6 +16,6 @@ OpenCV Application that tries to process images of graphs and generate the corre
 * For example: `python3 graph.py -i graph7.png`
 * A new directory called 'outputs' will be created in your working directory containing the the output JSON file with the adjacency matrix, as well as the inputted image with detected nodes and edges highlighted.
 
-**Sample Output**: <br>
+**Sample Output**: <br> <br> <br>
 ![image](https://user-images.githubusercontent.com/22039575/132899018-6e20645a-4413-4b61-9f44-4aa19f772f20.png)
 
