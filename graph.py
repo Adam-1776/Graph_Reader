@@ -5,6 +5,8 @@ import argparse
 import sys
 import math
 import pytesseract
+import os
+import json
 
 def distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
@@ -176,6 +178,7 @@ exno = cv2.add(im_in,sub)
 
 listEdges=[]
 listNodes=[]
+listNodesNames=[]
 """
 cv2.imshow("Arrows", exar)
 cv2.waitKey(0)
@@ -218,15 +221,17 @@ for cnt in contours:
         cropped = gray[y:y + h, x:x + w]
         cropped = preprocesscrop(cropped)
         
-        cv2.imshow("Image", cropped)
-        cv2.waitKey(0)
+        #cv2.imshow("Image", cropped)
+        #cv2.waitKey(0)
         
         txt = pytesseract.image_to_string(cropped,config='--psm 9')
         #analyzetxt(txt)
         txt=processtxt(txt)
         listNodes.append(node(cnt,txt))
-        #print('Found node ' + txt)
+        listNodesNames.append(txt)
+        print('Found node ' + txt)
 output = cv2.cvtColor(output, cv2.COLOR_GRAY2BGR)
+matrix = [[0 for i in range(len(listNodes))] for j in range(len(listNodes))]
 print('Found '+str(len(listEdges))+' arrows')
 for obj in listEdges:
     obj.highlight(output)
@@ -245,13 +250,41 @@ for obj in listEdges:
         #print('Distance from arr to '+ node_.name + ' is ' + str(dist2))
     if len(listNodes)>0 :
         print('Found edge connecting '+ beg_node.name + ' to ' + tip_node.name)
-    cv2.imshow("Image", output)
-    cv2.waitKey(0)
+        matrix[listNodesNames.index(beg_node.name)][listNodesNames.index(tip_node.name)] = 1
+    #cv2.imshow("Image", output)
+    #cv2.waitKey(0)
+
 
 for obj in listNodes:
     obj.highlight(output)
-    cv2.imshow("Image", output)
-    cv2.waitKey(0)
+    #cv2.imshow("Image", output)
+    #cv2.waitKey(0)
+
+dictout={
+        "num_nodes": len(listNodes),
+        "node_names": listNodesNames,
+        "matrix": matrix
+    }
+
+path = r'outputs'
+isExist = os.path.exists(path)
+if not isExist:
+  os.makedirs(path)
+  print("outputs directory created")
+directory = r'outputs'
+os.chdir(directory)
+path_to_image = args["image"]
+index1 = path_to_image.find('/')
+imgName=path_to_image[index1+1:]
+index1 = imgName.find('/')
+imgName=imgName[index1+1:]
+cv2.imwrite(imgName,output)
+jsonName=imgName[0:len(imgName)-3]+"json"
+with open(jsonName, "w") as outfile:
+    json.dump(dictout, outfile)
+print("Writing file "+imgName)
+os.chdir('../')
+
 sys.exit()
 
 
